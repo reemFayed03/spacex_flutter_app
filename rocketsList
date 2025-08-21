@@ -1,0 +1,200 @@
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:untitled3/decorations/star_painter.dart';
+import 'S6(rocketDatails).dart';
+
+class RocketsList extends StatefulWidget {
+  const RocketsList({super.key});
+
+  @override
+  State<RocketsList> createState() => _RocketsListState();
+}
+
+class _RocketsListState extends State<RocketsList> {
+  late Future<List<dynamic>> _rockets;
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _allRockets = [];
+  List<dynamic> _filteredRockets = [];
+
+  Future<List<dynamic>> _getData() async {
+    var dio = Dio();
+    var response =
+    await dio.get('https://api.spacexdata.com/v4/rockets');
+    _allRockets = response.data;
+    _filteredRockets = _allRockets;
+    return _allRockets;
+  }
+
+  void _filterRockets(String query) {
+    setState(() {
+      _filteredRockets = _allRockets
+          .where((rocket) => rocket['name']
+          .toLowerCase()
+          .contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _rockets = _getData();
+    _searchController.addListener(() {
+      _filterRockets(_searchController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: true,
+        backgroundColor: Colors.black,
+        centerTitle: true,
+        title: const Text(
+          'Rockets List',
+          style: TextStyle(color: Colors.white),
+        ),
+          iconTheme: IconThemeData(color: Colors.white)
+      ),
+      body:Stack(
+        children: [
+
+          Positioned.fill(
+            child: CustomPaint(
+              painter: StarPainter(
+                numberOfStars: 200,
+                starColor: Colors.grey[600]!,
+              ),
+            ),
+          ),
+
+
+             FutureBuilder<List<dynamic>>(
+              future: _rockets,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Error loading launches',
+                          style: TextStyle(color: Colors.white, fontSize: 24),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _rockets = _getData();
+                            });
+                          },
+                          child: const Text('Retry'),
+                        )
+                      ],
+                    ),
+                  );
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('No Launches Found'));
+                }
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Search rockets...',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          prefixIcon: const Icon(Icons.search, color: Colors.white),
+                          filled: true,
+                          fillColor: Colors.grey[850],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.all(12),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.8,
+                        ),
+                        itemCount: _filteredRockets.length,
+                        itemBuilder: (context, index) {
+                          var rocket = _filteredRockets[index];
+                          var imageUrl = rocket['flickr_images'][0];
+                          var name = rocket['name'];
+
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      RocketDetails(rocket: rocket),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[900],
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(12.0)),
+                                      child: Image.network(
+                                        imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrack) =>
+                                        const Icon(Icons.image_not_supported,
+                                            size: 80),
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      name,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+        ],
+      ),
+    );
+  }
+}
