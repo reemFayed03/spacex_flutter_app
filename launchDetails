@@ -1,0 +1,79 @@
+import 'package:flutter/material.dart';
+import 'package:untitled3/decorations/star_painter.dart';
+
+class LaunchDetails extends StatelessWidget {
+  final Map<String,dynamic> launch;
+  const LaunchDetails({super.key,required this.launch});
+
+  @override
+  Widget build(BuildContext context) {
+    var imageUrl = launch['links']['patch']['large'] ?? '';
+    var name =launch['name'] ?? 'N/A';
+    var details =launch['details']??'No Description available';
+    var success = launch['success'];
+    String statusText ;
+    Color statusColor;
+
+    if (success==true)
+    {statusText='success';statusColor=Colors.green;}
+    else if (success==false)
+    {statusText='failed';statusColor=Colors.red;}
+    else
+    {statusText='Unknown';statusColor=Colors.grey;}
+
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: true,
+        backgroundColor: Colors.black,
+        centerTitle: true,
+        title:Text(name,
+          style: const TextStyle(
+              color: Colors.white
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: StarPainter(
+                numberOfStars: 200,
+                starColor: Colors.grey[600]!,
+              ),
+            ),
+          ),
+          Container(
+            color: Colors.transparent,
+            child:ListView(
+              children: [Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 70),
+                      Hero(tag: name,
+                        child: Image.network(
+                            (imageUrl is String && imageUrl.isNotEmpty) ? imageUrl : 'assets/images/spacex-seeklogo.png',
+                            height: 200,
+                            fit:BoxFit.cover,
+                            errorBuilder: (context,error,stackTrack)=>const Icon(Icons.image_not_supported, size: 100)
+                        ),
+                      ),
+                      const SizedBox(height: 70),
+                      Text(statusText,style: TextStyle(fontSize: 24,color: statusColor)),
+                      const SizedBox(height: 40),
+                      Text(details,style: const TextStyle(fontSize: 20,color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
