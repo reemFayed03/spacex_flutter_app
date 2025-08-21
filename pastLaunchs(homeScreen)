@@ -1,0 +1,218 @@
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'S3(launchDetails).dart';
+import 'package:untitled3/decorations/star_painter.dart';
+
+class MyHome extends StatefulWidget {
+  const MyHome({super.key});
+
+  @override
+  State<MyHome> createState() => _MyHomeState();
+}
+
+class _MyHomeState extends State<MyHome> {
+  late Future<List<dynamic>> _launchesFuture;
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _allLaunches = [];
+  List<dynamic> _filteredLaunches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _launchesFuture = _fetchPastLaunches();
+    _searchController.addListener(() {
+
+
+      _filterLaunches(_searchController.text);
+    });
+  }
+
+  Future<List<dynamic>> _fetchPastLaunches() async {
+    final dio = Dio();
+    final response = await dio.get(
+      'https://api.spacexdata.com/v5/launches/past?limit=30&order=desc',
+    );
+    _allLaunches = response.data;
+    _filteredLaunches = _allLaunches;
+    return _allLaunches;
+  }
+
+  void _filterLaunches(String query) {
+    setState(() {
+      _filteredLaunches = _allLaunches.where((launch) {
+        final name = launch['name']?.toString().toLowerCase() ?? '';
+        return name.contains(query.toLowerCase());
+      }).toList();
+    });
+  }
+
+  String _formatDate(String? utcDate) {
+    if (utcDate == null) return 'N/A';
+    final dateTime = DateTime.tryParse(utcDate)?.toLocal();
+    if (dateTime == null) return 'Invalid Date';
+    return "${dateTime.day.toString().padLeft(2, '0')}/"
+        "${dateTime.month.toString().padLeft(2, '0')}/"
+        "${dateTime.year}";
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Drawer _buildDrawer() {
+    return Drawer(
+      backgroundColor: Colors.grey[850],
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: Colors.black),
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.zero,
+            child: Center(
+              child: Image.asset(
+                'assets/images/spacex-seeklogo.png',
+                fit: BoxFit.contain,
+                scale: 10.0,
+              ),
+            ),
+          ),
+          _buildDrawerItem(Icons.event_available, 'Past Luanches', '/home'),
+          _buildDrawerItem(Icons.event, 'upcoming lunches', '/upcoming'),
+          _buildDrawerItem(Icons.rocket_launch, 'Rockets', '/rocketsList'),
+        ],
+      ),
+    );
+  }
+
+  ListTile _buildDrawerItem(IconData icon, String title, String routeName) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(title, style: TextStyle(color: Colors.white)),
+      onTap: () {
+        Navigator.pop(context);
+        final currentRoute = ModalRoute.of(context)?.settings.name;
+        if (currentRoute != routeName) {
+          Navigator.pushNamed(context, routeName);
+        }
+      },
+    );
+  }
+
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search past launches...',
+          hintStyle: TextStyle(color: Colors.grey[400]),
+          prefixIcon: Icon(Icons.search, color: Colors.white70),
+          filled: true,
+          fillColor: Colors.black.withOpacity(0.4),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25.0),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLaunchList(List<dynamic> launches) {
+    if (launches.isEmpty) {
+      return Center(
+        child: Text(
+          _searchController.text.isEmpty
+              ? 'No Past Launches Found'
+              : 'No results for "${_searchController.text}"',
+          style: TextStyle(color: Colors.grey[400], fontSize: 18),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: launches.length,
+      itemBuilder: (context, index) {
+        final launch = launches[index];
+        final name = launch['name'] ?? 'N/A';
+        final dateUtc = launch['date_utc'];
+        final imageUrl = launch['links']?['patch']?['small'];
+
+        return Card(
+          color: Colors.black.withOpacity(0.5),
+          margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Hero(
+              tag: 'launch_image_$name',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? Image.network(imageUrl, width: 50, height: 50, fit: BoxFit.cover)
+                    : Icon(Icons.rocket_launch, color: Colors.grey[400]),
+              ),
+            ),
+            title: Text(name, style: TextStyle(color: Colors.white)),
+            subtitle: Text(_formatDate(dateUtc), style: TextStyle(color: Colors.grey[400])),
+            trailing: Icon(Icons.chevron_right, color: Colors.white),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LaunchDetails(launch: launch),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.8),
+        iconTheme: IconThemeData(color: Colors.white),
+        title: Text('Past Launches', style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+      ),
+      drawer: _buildDrawer(),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(
+              painter: StarPainter(numberOfStars: 200, starColor: Colors.grey[600]!),
+              child: Container(),
+            ),
+          ),
+          Column(
+            children: [
+              _buildSearchBar(),
+              Expanded(
+                child: FutureBuilder<List<dynamic>>(
+                  future: _launchesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator(color: Colors.white70));
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error loading data', style: TextStyle(color: Colors.white)));
+                    }
+                    return _buildLaunchList(_filteredLaunches);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
