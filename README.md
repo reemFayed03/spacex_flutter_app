@@ -1,9 +1,11 @@
 # SpaceX Explorer App
 
 A Flutter application that displays data from the SpaceX API, including:  
-- Past Launches  
+- Past Launches
+- Past Launches details  
 - Upcoming Launches  
-- Rockets  
+- Rockets
+- Rockets details  
 
 ## Features
 - Dark-themed user interface with a starry background.  
