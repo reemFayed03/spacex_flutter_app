@@ -1,0 +1,101 @@
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:untitled3/decorations/star_painter.dart';
+class UpcomingLaunches extends StatefulWidget {
+  const UpcomingLaunches({super.key});
+
+  @override
+  State<UpcomingLaunches> createState() => _UpcomingLaunchesState();
+}
+
+class _UpcomingLaunchesState extends State<UpcomingLaunches> {
+  late Future<List<dynamic>> upcomingLaunches1;
+  
+  Future<List<dynamic>> getData() async
+  {
+    var dio = Dio();
+    var response = await dio.get('https://api.spacexdata.com/v5/launches/upcoming');
+    return response.data;
+  }
+
+  String formatDate(String utcData){
+    var dateTime = DateTime.parse(utcData).toLocal();
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+  @override
+  void initState(){
+    super.initState();
+    upcomingLaunches1 = getData();
+  }
+  
+  Widget build(BuildContext context) {
+    return  Scaffold(
+        appBar:
+        AppBar(automaticallyImplyLeading: true,
+          backgroundColor: Colors.black,
+          centerTitle: true,
+          title:Text('Upcoming Launches',
+            style: TextStyle(
+                color: Colors.white
+            ),
+          ),
+            iconTheme: IconThemeData(color: Colors.white)
+        ),
+
+      body:Stack(
+        children: [
+
+          Positioned.fill(
+            child: CustomPaint(
+              painter: StarPainter(
+                numberOfStars: 200,
+                starColor: Colors.grey[600]!,
+              ),
+            ),
+          ),
+          FutureBuilder<List<dynamic>>
+              (future: upcomingLaunches1,
+                builder: (context , snapshot){
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                  {return Center(child: CircularProgressIndicator());}
+                  else if(snapshot.hasError)
+                  {return Center(child: Column(mainAxisSize: MainAxisSize.min,
+                    children: [Text('Error loading launches',
+                      style: TextStyle(color:Colors.white,
+                          fontSize:24 ),),
+                      TextButton(onPressed: (){setState(() {
+                        upcomingLaunches1 = getData();
+                      });},
+                          child: Text('Retry'))],),);}
+
+                  else if (!snapshot.hasData||snapshot.data!.isEmpty)
+                  {return Center(child: Text('No Launches Found'));}
+
+                  var launches = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: launches.length,
+                    itemBuilder: (context,index){
+                      var launch = launches[index];
+                      var name = launch['name'];
+                      var date = launch['date_utc'];
+                      return ListTile(
+                        leading:Hero(tag: name,
+                          child:  Image.network(launch['links']['patch']['small']??'',
+                              width: 50,height: 50,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context,error,stackTrack)=>Icon(Icons.image_not_supported) ),
+                        ),
+                        title: Text(name,style: TextStyle(color:Colors.white,
+                            fontSize:28 )),
+                        subtitle: Text(formatDate(date),style: TextStyle(color:Colors.grey,
+                            fontSize:14)),
+
+                      );
+                    },) ;
+                }
+            ),
+        ],
+      ),
+    );
+  }
+}
